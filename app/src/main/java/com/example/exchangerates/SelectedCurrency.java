@@ -101,16 +101,16 @@ public class SelectedCurrency extends AppCompatActivity {
             }
         }
 
-        ArrayList<Map<String, String>> ratesByDates = new ArrayList<>(ratesDates.size());
+        ArrayList<Map<String, String>> sortedRatesByDates = new ArrayList<>(ratesDates.size());
         Map map;
-        for (int i = 0; i < ratesByDates.size(); i++) {
+        for (int i = 0; i < ratesDates.size(); i++) {
             map = new HashMap();
             map.put(ATTR_RATE_DATE, ratesDates.get(i));
             map.put(GlobalVariables.ATTR_EX_RATE, ratesByTimePeriod.get(ratesDates.get(i)).get(curName));
-            ratesByDates.add(map);
+            sortedRatesByDates.add(map);
         }
 
-        return ratesByDates;
+        return sortedRatesByDates;
     }
 
     private void graphBuilding(ArrayList<Map<String, String>> graphData) {
