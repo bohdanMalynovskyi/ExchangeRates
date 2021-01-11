@@ -4,12 +4,10 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.ContentValues;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -29,12 +27,7 @@ import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemClickListener {
 
-    final String ATTR_CUR_NAME = "curName";
-    final String ATTR_EX_RATE = "exRate";
-    final String TIMESTAMP = "timestamp";
-    final String BASE_CURRENCY = "USD";
-
-    private String TAG = "myLogs";
+    private static final String ATTR_TIMESTAMP = "timestamp";
 
     ListView lv;
     SharedPreferences sPref;
@@ -48,13 +41,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // COMMIT after completing
-        //
-        //
-
         checkTimePreferenceExisting();
 
-        lv = (ListView) findViewById(R.id.lv);
+        lv = findViewById(R.id.lv);
         lv.setOnItemClickListener(this);
 
         connectDB();
@@ -64,49 +53,45 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         } else {
             loadRatesFromDB();
         }
-
     }
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         Intent intent = new Intent(MainActivity.this, SelectedCurrency.class);
-        intent.putExtra(ATTR_CUR_NAME, exchangeRates.get(position).get(ATTR_CUR_NAME));
+        intent.putExtra(GlobalVariables.ATTR_CUR_NAME, exchangeRates.get(position).get(GlobalVariables.ATTR_CUR_NAME));
         startActivity(intent);
     }
 
     private void checkTimePreferenceExisting() {
         sPref = getPreferences(MODE_PRIVATE);
-        if (!sPref.contains(TIMESTAMP)) {
+        if (!sPref.contains(ATTR_TIMESTAMP)) {
             SharedPreferences.Editor ed = sPref.edit();
-            ed.putString(TIMESTAMP, "0");
+            ed.putString(ATTR_TIMESTAMP, "0");
             ed.commit();
         }
     }
 
     private void loadRatesFromWebService() {
-
-        Log.d(TAG, "Data from web service");
-
         NetworkService.getInstance()
                 .getJSONApi()
-                .getRateByBaseCurrency(BASE_CURRENCY)
+                .getRateByBaseCurrency(GlobalVariables.BASE_CURRENCY)
                 .enqueue(new Callback<RateByBaseCurrency>() {
                     @Override
                     public void onResponse(@NonNull Call<RateByBaseCurrency> call, @NonNull Response<RateByBaseCurrency> response) {
                         Map<String, String> map = response.body().getRates();
-                        List<String> list1 = new ArrayList<String>(map.keySet());
-                        List<String> list2 = new ArrayList<String>(map.values());
+                        List<String> mapKeysList = new ArrayList<String>(map.keySet());
+                        List<String> mapValuesList = new ArrayList<String>(map.values());
 
-                        for (int i = 0; i < list1.size(); i++) {
+                        for (int i = 0; i < mapKeysList.size(); i++) {
                             map = new HashMap<>();
-                            map.put(ATTR_CUR_NAME, list1.get(i));
-                            map.put(ATTR_EX_RATE, list2.get(i));
+                            map.put(GlobalVariables.ATTR_CUR_NAME, mapKeysList.get(i));
+                            map.put(GlobalVariables.ATTR_EX_RATE, mapValuesList.get(i));
                             exchangeRates.add(map);
                         }
 
                         adapter = new SimpleAdapter(
                                 MainActivity.this, exchangeRates,
-                                R.layout.item, new String[]{ATTR_CUR_NAME, ATTR_EX_RATE},
+                                R.layout.item, new String[]{GlobalVariables.ATTR_CUR_NAME, GlobalVariables.ATTR_EX_RATE},
                                 new int[]{R.id.tvCurName, R.id.tvExRate});
                         lv.setAdapter(adapter);
 
@@ -123,30 +108,27 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     private void loadRatesFromDB() {
         Map<String, String> map;
-        Cursor c = db.query("mytable", null, null, null, null, null, null);
+        Cursor cursor = db.query("mytable", null, null, null, null, null, null);
 
-        Log.d(TAG, "Data from local DB");
-
-        if (c.moveToFirst()) {
-
-            int curColIndex = c.getColumnIndex(ATTR_CUR_NAME);
-            int rateColIndex = c.getColumnIndex(ATTR_EX_RATE);
+        if (cursor.moveToFirst()) {
+            int curColIndex = cursor.getColumnIndex(GlobalVariables.ATTR_CUR_NAME);
+            int rateColIndex = cursor.getColumnIndex(GlobalVariables.ATTR_EX_RATE);
 
             do {
                 map = new HashMap<>();
-                map.put(ATTR_CUR_NAME, c.getString(curColIndex));
-                map.put(ATTR_EX_RATE, c.getString(rateColIndex));
+                map.put(GlobalVariables.ATTR_CUR_NAME, cursor.getString(curColIndex));
+                map.put(GlobalVariables.ATTR_EX_RATE, cursor.getString(rateColIndex));
                 exchangeRates.add(map);
-            } while (c.moveToNext());
+            } while (cursor.moveToNext());
 
             adapter = new SimpleAdapter(
                     MainActivity.this, exchangeRates,
-                    R.layout.item, new String[]{ATTR_CUR_NAME, ATTR_EX_RATE},
+                    R.layout.item, new String[]{GlobalVariables.ATTR_CUR_NAME, GlobalVariables.ATTR_EX_RATE},
                     new int[]{R.id.tvCurName, R.id.tvExRate});
             lv.setAdapter(adapter);
         } else
-            Log.d(TAG, "0 rows");
-        c.close();
+            Log.d(GlobalVariables.TAG, "0 rows");
+        cursor.close();
     }
 
     private void saveRatesToDB(ArrayList<Map<String, String>> exchangeRates) {
@@ -154,8 +136,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         for (int i = 0; i < exchangeRates.size(); i++) {
             cv = new ContentValues();
-            cv.put(ATTR_CUR_NAME, exchangeRates.get(i).get(ATTR_CUR_NAME));
-            cv.put(ATTR_EX_RATE, exchangeRates.get(i).get(ATTR_EX_RATE));
+            cv.put(GlobalVariables.ATTR_CUR_NAME, exchangeRates.get(i).get(GlobalVariables.ATTR_CUR_NAME));
+            cv.put(GlobalVariables.ATTR_EX_RATE, exchangeRates.get(i).get(GlobalVariables.ATTR_EX_RATE));
             db.insert("mytable", null, cv);
         }
     }
@@ -163,7 +145,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private void saveTimestamp() {
         sPref = getPreferences(MODE_PRIVATE);
         SharedPreferences.Editor ed = sPref.edit();
-        ed.putString(TIMESTAMP, Long.toString(System.currentTimeMillis()));
+        ed.putString(ATTR_TIMESTAMP, Long.toString(System.currentTimeMillis()));
         ed.commit();
 
     }
@@ -172,37 +154,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         sPref = getPreferences(MODE_PRIVATE);
         int milsecInMin = 60 * 1000;
 
-        long oldTimestamp = Long.parseLong(sPref.getString(TIMESTAMP, ""));
+        long oldTimestamp = Long.parseLong(sPref.getString(ATTR_TIMESTAMP, ""));
         long newTimestamp = System.currentTimeMillis();
 
         return (newTimestamp - oldTimestamp) / milsecInMin;
     }
 
-    private void connectDB(){
+    private void connectDB() {
         dbHelper = new DBHelper(this);
         db = dbHelper.getWritableDatabase();
-    }
-
-    class DBHelper extends SQLiteOpenHelper {
-
-        public DBHelper(Context context) {
-            // конструктор суперкласса
-            super(context, "myDB", null, 1);
-        }
-
-        @Override
-        public void onCreate(SQLiteDatabase db) {
-            Log.d(TAG, "--- onCreate database ---");
-            // создаем таблицу с полями
-            db.execSQL("create table mytable ("
-                    + "id integer primary key autoincrement,"
-                    + ATTR_CUR_NAME + " text,"
-                    + ATTR_EX_RATE + " float" + ");");
-        }
-
-        @Override
-        public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-
-        }
     }
 }
